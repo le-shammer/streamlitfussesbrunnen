@@ -2,24 +2,26 @@ import streamlit as st
 import pandas as pd
 
 # Function to transform data to long format using wide_to_long function
-def transform_data(df, letter):
-    data = []
-    for index, row in df.iterrows():
-        for col in df.columns:
-            if col.startswith('hs') and col != 'hs'+letter:
-                other_letter = col.replace('hs', '')
-                main_text = row['hs{}'.format(letter)]
-                additional_text = '{}: {}'.format(other_letter.upper(), row['hs{}'.format(other_letter.lower())])  # Corrected line
-                distance_colum = [c for c in list(df.columns) if "dis" in c and letter in c and other_letter in c][0]
-                distance = row[distance_colum]
-                data.append([index, main_text, additional_text, distance])
-    return pd.DataFrame(data, columns=['Index', 'Main Text', 'Additional Text', 'Distance'])
+def transform_data(df):
+    transformed_data = {}
+    for letter in ["a", "b", "c", "l"]:
+        data = []
+        for index, row in df.iterrows():
+            for col in df.columns:
+                if col.startswith('hs') and col != 'hs'+letter:
+                    other_letter = col.replace('hs', '')
+                    main_text = row['hs{}'.format(letter)]
+                    additional_text = '{}: {}'.format(other_letter.upper(), row['hs{}'.format(other_letter.lower())])
+                    distance_column = [c for c in df.columns if "dis" in c and letter in c and other_letter in c][0]
+                    distance = row[distance_column]
+                    data.append([index, main_text, additional_text, distance])
+        transformed_data[letter] = pd.DataFrame(data, columns=['Index', 'Main Text', 'Additional Text', 'Distance'])
+    return transformed_data
 
 # Function to filter data based on selected main text and distance threshold
 def filter_data(threshold, df):
-    #filtered_df = df[df['Distance'] >= threshold]
     filtered_df = df.copy()
-    filtered_df.loc[filtered_df['Distance']<threshold, 'Additional Text'] = ''
+    filtered_df.loc[filtered_df['Distance'] < threshold, 'Additional Text'] = ''
     grouped_df = filtered_df.groupby(['Index', 'Main Text'])['Additional Text'].apply(lambda x: '<br>'.join(x)).reset_index()
     return grouped_df
 
@@ -47,20 +49,16 @@ def main():
         }
         df = pd.DataFrame(example_data)
 
-    # Display example data
-    #st.write("Example Data:")
-    #st.write(df.head())
+    # Transform data to long format
+    transformed_data = transform_data(df)
 
     # Sidebar widgets
     st.sidebar.header("Filter Options")
     main_text = st.sidebar.selectbox("Choose Main Text", ["a", "b", "c", "l"])
     threshold = st.sidebar.slider("Distance Threshold", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
 
-    # Transform data to long format
-    long_df = transform_data(df, main_text)
-    print(long_df)
     # Filter data
-    filtered_df = filter_data(threshold, long_df)
+    filtered_df = filter_data(threshold, transformed_data[main_text])
 
     # Display filtered texts
     st.write("Filtered Texts:")
